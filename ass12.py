@@ -141,5 +141,3 @@ if __name__ == '__main__':
     game = SnakeGame()
     game_over, score = game.play_step()
     pygame.quit()
-
-//commit
