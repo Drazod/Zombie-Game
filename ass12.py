@@ -2,6 +2,7 @@ import pygame
 import random
 from collections import namedtuple
 import time
+import math
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
@@ -19,12 +20,46 @@ hit.set_volume(0.3)
 BLOCK_SIZE = 20
 SPEED = 20
 last_count = pygame.time.get_ticks()
+
 zombie_image = pygame.image.load('zombie_stand.png')
+pygame.transform.scale(zombie_image, (20,20))
 zombie_rect = zombie_image.get_rect()
+
 target = pygame.image.load('target.png')
-pygame.transform.scale(target, (10, 10))
-pygame.Surface.set_colorkey(target, [255,255,255])
+pygame.transform.scale(target, (5, 5))
+pygame.Surface.set_colorkey(target, [255, 255, 255])
 print(target)
+
+class Zombie:
+    def __init__(self, screen_width, screen_height):
+        self.image = zombie_image
+        self.rect = self.image.get_rect()
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.reset()
+
+    def reset(self):
+        self.alive = True
+        self.rect.x = random.randint(0, self.screen_width - self.rect.width)
+        self.rect.y = random.randint(0, self.screen_height - self.rect.height)
+        self.target_corner = random.choice([(0, 0), (self.screen_width, 0), (0, self.screen_height),
+                                            (self.screen_width, self.screen_height)])
+
+    def move(self, speed):
+        if self.alive:
+            angle = math.atan2(self.target_corner[1] - self.rect.centery, self.target_corner[0] - self.rect.centerx)
+            dx = speed * math.cos(angle)
+            dy = speed * math.sin(angle)
+            self.rect.x += dx
+            self.rect.y += dy
+
+            if (
+                (dx > 0 and self.rect.x > self.target_corner[0])
+                or (dx < 0 and self.rect.x < self.target_corner[0])
+                or (dy > 0 and self.rect.y > self.target_corner[1])
+                or (dy < 0 and self.rect.y < self.target_corner[1])
+            ):
+                self.reset()
 
 class SnakeGame:
     def __init__(self, w=640, h=480):
@@ -37,17 +72,16 @@ class SnakeGame:
         self.gameover = False
         self.starter = False
         self.zombies = []
-        self.zombie_speed = 8
-        self.zombie_direction = random.choice(['up', 'down', 'left', 'right'])
+        self.zombie_speed = 5
         self.hit = 0
         self.miss = 0
-        self.zombie = None
         self.click = False
         self.click_Pos = (-1, -1)
         self.game_time = 60
         self.starter_time = 3
+        self.spawn_interval = 2000  # Spawn a new zombie every 5 seconds
+        self.last_spawn_time = pygame.time.get_ticks()
         self._load_resources()
-        self._place_zombie()
 
     def _load_resources(self):
         self.background_image = pygame.image.load('grayard.png')
@@ -56,17 +90,20 @@ class SnakeGame:
         img = font.render(text, True, text_col)
         self.display.blit(img, (x, y))
 
-    def ClickZombie(self, clickable_area):
-        if clickable_area.collidepoint(self.click_Pos):
-            hit.play()
-            return True
+    def ClickZombie(self, zombies):
+        for zombie in zombies:
+            if zombie.alive and zombie.rect.collidepoint(self.click_Pos):
+                hit.play()
+                zombie.alive = False
+                return True
+        return False
 
     def _place_zombie(self):
-        x = random.randint(0, (self.w - zombie_rect.width) // zombie_rect.width) * zombie_rect.width
-        y = random.randint(0, (self.h - zombie_rect.height) // zombie_rect.height) * zombie_rect.height
-        self.zombie = pygame.Rect(x - zombie_rect.width / 2, y - zombie_rect.height / 2,
-                                   zombie_rect.width, zombie_rect.height)
-        self.zombies.append(self.zombie)
+        now = pygame.time.get_ticks()
+        if now - self.last_spawn_time >= self.spawn_interval:
+            new_zombie = Zombie(self.w, self.h)
+            self.zombies.append(new_zombie)
+            self.last_spawn_time = now
 
     def countdown(self):
         global last_count
@@ -89,41 +126,26 @@ class SnakeGame:
                         pygame.mixer.music.play(-1)
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     self.click = True
+
             if self.starter_time == 0:
-                halloween.play(loops=-1,maxtime=1000*(self.game_time-1))
+                halloween.play(loops=-1, maxtime=1000 * (self.game_time - 1))
+
             if self.starter:
                 if self.game_time > 0:
                     pygame.mouse.set_visible(False)
                     self.mouse_position = pygame.mouse.get_pos()
+                    self._place_zombie()
+
                     for zombie in self.zombies:
-                        if self.zombie_direction == 'up':
-                            zombie.y -= self.zombie_speed
-                        elif self.zombie_direction == 'down':
-                            zombie.y += self.zombie_speed
-                        elif self.zombie_direction == 'left':
-                            zombie.x -= self.zombie_speed
-                        elif self.zombie_direction == 'right':
-                            zombie.x += self.zombie_speed
-
-                    if random.random() < 0.02:
-                        self.zombie_direction = random.choice(['up', 'down', 'left', 'right'])
-
-                    if self.zombie.x + BLOCK_SIZE < 0 or self.zombie.x > self.w or \
-                       self.zombie.y + BLOCK_SIZE < 0 or self.zombie.y > self.h:
-                        print("Zombie went out of bounds!")
-                        self._place_zombie()
+                        zombie.move(self.zombie_speed)
 
                     if self.click:
                         self.click_Pos = pygame.mouse.get_pos()
-                        clickable_area = self._update_ui()
-                        if self.ClickZombie(clickable_area):
-                            print("Zombie clicked!")
-                            self.hit += 1
-                            self._place_zombie()
-                        else:
+                        if not self.ClickZombie(self.zombies):
                             print("Missed zombie!")
                             self.miss += 1
-                            self._place_zombie()
+                        else:
+                            self.hit +=1
                         self.click = False
 
                 else:
@@ -139,23 +161,21 @@ class SnakeGame:
         self.display.blit(self.background_image, (0, 0))
         self.starter_time -= 1
         if not self.starter:
-            self.draw_text("Game starts in " + str(self.starter_time), font, WHITE, int(self.w / 2 - 100), int(self.h / 2))
+            self.draw_text("Game starts in " + str(self.starter_time), font, WHITE, int(self.w / 2 - 100),
+                           int(self.h / 2))
             pygame.display.flip()
             time.sleep(1)
             if self.starter_time == 0:
                 self.starter = True
         else:
-            if not self.gameover: 
-                zombie_rect.center = (self.zombie.x, self.zombie.y)
-                self.display.blit(zombie_image, zombie_rect)
-                clickable_area = pygame.Rect(self.zombie.x - zombie_rect.width / 2, self.zombie.y - zombie_rect.height / 2,
-                                             zombie_rect.width, zombie_rect.height)
-
+            if not self.gameover:
+                for zombie in self.zombies:
+                    if zombie.alive:
+                        self.display.blit(zombie.image, zombie.rect)
                 self.draw_text("Score: " + str(self.hit) + '-' + str(self.miss), font, WHITE, 0, 0)
                 self.draw_text("Time: " + str(self.game_time), font, WHITE, self.w - 100, 0)
-                self.display.blit(target,(self.mouse_position[0]-40,self.mouse_position[1]-40))
+                self.display.blit(target, (self.mouse_position[0] - 40, self.mouse_position[1] - 40))
                 pygame.display.flip()
-                return clickable_area
             else:
                 self.draw_text("GAME OVER!", font, WHITE, int(self.w / 2 - 75), int(self.h / 2))
                 pygame.display.flip()
@@ -163,5 +183,5 @@ class SnakeGame:
 
 if __name__ == '__main__':
     game = SnakeGame()
-    game_over, score = game.play_step()
+    game.play_step()
     pygame.quit()
