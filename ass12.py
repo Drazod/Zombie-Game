@@ -21,6 +21,10 @@ SPEED = 20
 last_count = pygame.time.get_ticks()
 zombie_image = pygame.image.load('zombie_stand.png')
 zombie_rect = zombie_image.get_rect()
+target = pygame.image.load('target.png')
+pygame.transform.scale(target, (10, 10))
+pygame.Surface.set_colorkey(target, [255,255,255])
+print(target)
 
 class SnakeGame:
     def __init__(self, w=640, h=480):
@@ -29,6 +33,7 @@ class SnakeGame:
         self.display = pygame.display.set_mode((self.w, self.h))
         pygame.display.set_caption('Zombie')
         self.clock = pygame.time.Clock()
+        self.mouse_position = pygame.mouse.get_pos()
         self.gameover = False
         self.starter = False
         self.zombies = []
@@ -88,6 +93,8 @@ class SnakeGame:
                 halloween.play(loops=-1,maxtime=1000*(self.game_time-1))
             if self.starter:
                 if self.game_time > 0:
+                    pygame.mouse.set_visible(False)
+                    self.mouse_position = pygame.mouse.get_pos()
                     for zombie in self.zombies:
                         if self.zombie_direction == 'up':
                             zombie.y -= self.zombie_speed
@@ -138,7 +145,7 @@ class SnakeGame:
             if self.starter_time == 0:
                 self.starter = True
         else:
-            if not self.gameover:
+            if not self.gameover: 
                 zombie_rect.center = (self.zombie.x, self.zombie.y)
                 self.display.blit(zombie_image, zombie_rect)
                 clickable_area = pygame.Rect(self.zombie.x - zombie_rect.width / 2, self.zombie.y - zombie_rect.height / 2,
@@ -146,6 +153,7 @@ class SnakeGame:
 
                 self.draw_text("Score: " + str(self.hit) + '-' + str(self.miss), font, WHITE, 0, 0)
                 self.draw_text("Time: " + str(self.game_time), font, WHITE, self.w - 100, 0)
+                self.display.blit(target,(self.mouse_position[0]-40,self.mouse_position[1]-40))
                 pygame.display.flip()
                 return clickable_area
             else:
