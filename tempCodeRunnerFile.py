@@ -1,1 +1,1 @@
-pygame.Surface.set_colorkey(target, [255,255,255])
+self.draw_text("Score: " + str(self.hit) + '-' + str(self.miss), font, WHITE, 0, 0)

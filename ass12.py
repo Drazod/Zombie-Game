@@ -5,7 +5,7 @@ import time
 import math
 
 pygame.init()
-font = pygame.font.Font('arial.ttf', 25)
+font = pygame.font.Font('MineCraft.ttf', 25)
 
 Point = namedtuple('Point', 'x, y')
 
@@ -156,6 +156,10 @@ class SnakeGame:
                     gameover.play(maxtime=3000)
             self._update_ui()
             self.clock.tick(SPEED)
+    def _draw_scoreboard(self):
+        pygame.draw.rect(self.display, (230, 164, 180), (0, 0, self.w, 40))  # Draw a black rectangle as the background for the scoreboard
+        self.draw_text("Score: " + str(self.hit) + '-' + str(self.miss), font, WHITE, 10, 10)
+        self.draw_text("Time: " + str(self.game_time), font, WHITE, self.w - 110, 10)
 
     def _update_ui(self):
         self.display.blit(self.background_image, (0, 0))
@@ -172,8 +176,7 @@ class SnakeGame:
                 for zombie in self.zombies:
                     if zombie.alive:
                         self.display.blit(zombie.image, zombie.rect)
-                self.draw_text("Score: " + str(self.hit) + '-' + str(self.miss), font, WHITE, 0, 0)
-                self.draw_text("Time: " + str(self.game_time), font, WHITE, self.w - 100, 0)
+                self._draw_scoreboard()  # Draw the scoreboard
                 self.display.blit(target, (self.mouse_position[0] - 40, self.mouse_position[1] - 40))
                 pygame.display.flip()
             else:
