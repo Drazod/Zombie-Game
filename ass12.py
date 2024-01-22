@@ -11,6 +11,11 @@ Point = namedtuple('Point', 'x, y')
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
+clock = pygame.mixer.Sound('./music/clock-ticking-60-second-countdown-118231.mp3')
+halloween = pygame.mixer.Sound('./music/organ-interrupt-brolefilmer-122454.mp3')
+gameover = pygame.mixer.Sound('./music/violin-lose-1-175615.mp3')
+hit = pygame.mixer.Sound('./music/hq-explosion-6288.mp3')
+hit.set_volume(0.3)
 BLOCK_SIZE = 20
 SPEED = 20
 last_count = pygame.time.get_ticks()
@@ -34,7 +39,7 @@ class SnakeGame:
         self.zombie = None
         self.click = False
         self.click_Pos = (-1, -1)
-        self.game_time = 10
+        self.game_time = 60
         self.starter_time = 3
         self._load_resources()
         self._place_zombie()
@@ -48,6 +53,7 @@ class SnakeGame:
 
     def ClickZombie(self, clickable_area):
         if clickable_area.collidepoint(self.click_Pos):
+            hit.play()
             return True
 
     def _place_zombie(self):
@@ -65,13 +71,21 @@ class SnakeGame:
             last_count = now
 
     def play_step(self):
+        clock.play(maxtime=3000)
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     quit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_w:
+                        pygame.mixer.music.fadeout(1000)
+                    if event.key == pygame.K_e:
+                        pygame.mixer.music.play(-1)
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     self.click = True
+            if self.starter_time == 0:
+                halloween.play(loops=-1,maxtime=1000*(self.game_time-1))
             if self.starter:
                 if self.game_time > 0:
                     for zombie in self.zombies:
@@ -91,7 +105,6 @@ class SnakeGame:
                        self.zombie.y + BLOCK_SIZE < 0 or self.zombie.y > self.h:
                         print("Zombie went out of bounds!")
                         self._place_zombie()
-                    self.countdown()
 
                     if self.click:
                         self.click_Pos = pygame.mouse.get_pos()
@@ -109,16 +122,19 @@ class SnakeGame:
                 else:
                     self.gameover = True
                     self.draw_text("GAME OVER!", font, WHITE, int(self.w / 2 - 100), int(self.h / 2 + 50))
+                self.countdown()
+                if self.game_time == 0:
+                    gameover.play(maxtime=3000)
             self._update_ui()
             self.clock.tick(SPEED)
 
     def _update_ui(self):
         self.display.blit(self.background_image, (0, 0))
+        self.starter_time -= 1
         if not self.starter:
             self.draw_text("Game starts in " + str(self.starter_time), font, WHITE, int(self.w / 2 - 100), int(self.h / 2))
             pygame.display.flip()
             time.sleep(1)
-            self.starter_time -= 1
             if self.starter_time == 0:
                 self.starter = True
         else:
